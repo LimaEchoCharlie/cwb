@@ -12,8 +12,7 @@ const (
 	vhostName    = "vhost"
 	clientIP     = "ip"
 	resourceType = "resource"
-	resourceName = "name"
-	exchangeName = "name"
+	name         = "name"
 	accessLevel  = "permission"
 	routingKey   = "routing_key"
 )
@@ -74,12 +73,12 @@ func (i *vHostAuthZ) Parse(values url.Values) error {
 
 // resourceAuthZ holds the parameters contained in a resource authorisation request
 type resourceAuthZ struct {
-	username, vhostName, resourceType, resourceName, accessLevel string
+	username, vhostName, resourceType, name, accessLevel string
 }
 
 func (i *resourceAuthZ) String() string {
 	return fmt.Sprintf("resourceAuthZ {username: %s, vhost: %s, resource {type: %s, name: %s}, access level: %s}",
-		i.username, i.vhostName, i.resourceType, i.resourceName, i.accessLevel)
+		i.username, i.vhostName, i.resourceType, i.name, i.accessLevel)
 }
 
 // Parse from url values into struct. Returns an error if an expected parameter is missing.
@@ -94,10 +93,33 @@ func (i *resourceAuthZ) Parse(values url.Values) error {
 	if i.resourceType, err = getSingle(values, resourceType); err != nil {
 		return err
 	}
-	if i.resourceName, err = getSingle(values, resourceName); err != nil {
+	if i.name, err = getSingle(values, name); err != nil {
 		return err
 	}
 	if i.accessLevel, err = getSingle(values, accessLevel); err != nil {
+		return err
+	}
+	return nil
+}
+
+// topicAuthZ holds the parameters contained in a topic authorisation request
+type topicAuthZ struct {
+	resourceAuthZ
+	routingKey string
+}
+
+func (i *topicAuthZ) String() string {
+	return fmt.Sprintf("topicAuthZ {username: %s, vhost: %s, resource type: %s, exchange name: %s, access level: %s, routing key: %s}",
+		i.username, i.vhostName, i.resourceType, i.name, i.accessLevel, i.routingKey)
+}
+
+// Parse from url values into struct. Returns an error if an expected parameter is missing.
+func (i *topicAuthZ) Parse(values url.Values) error {
+	var err error
+	if err = i.resourceAuthZ.Parse(values); err != nil {
+		return err
+	}
+	if i.routingKey, err = getSingle(values, routingKey); err != nil {
 		return err
 	}
 	return nil

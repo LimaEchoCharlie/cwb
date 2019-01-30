@@ -4,6 +4,13 @@ import (
 	"log"
 
 	"github.com/streadway/amqp"
+	"fmt"
+)
+
+const (
+	username = "chinchilla"
+	password = "password"
+	vhost = "amqp-example"
 )
 
 func failOnError(err error, msg string) {
@@ -13,7 +20,8 @@ func failOnError(err error, msg string) {
 }
 
 func main() {
-	conn, err := amqp.DialConfig("amqp://bob:bob@localhost:5672/", amqp.Config{Vhost:"qal"})
+	uri := fmt.Sprintf("amqp://%s:%s@localhost:5672/", username, password)
+	conn, err := amqp.DialConfig(uri, amqp.Config{Vhost:vhost})
 	failOnError(err, "Failed to connect to RabbitMQ")
 	defer conn.Close()
 
@@ -31,25 +39,16 @@ func main() {
 	)
 	failOnError(err, "Failed to declare a queue")
 
-	msgs, err := ch.Consume(
-		q.Name, // queue
-		"",     // consumer
-		true,   // auto-ack
-		false,  // exclusive
-		false,  // no-local
-		false,  // no-wait
-		nil,    // args
-	)
-	failOnError(err, "Failed to register a consumer")
-
-	forever := make(chan bool)
-
-	go func() {
-		for d := range msgs {
-			log.Printf("Received a message: %s", d.Body)
-		}
-	}()
-
-	log.Printf(" [*] Waiting for messages. To exit press CTRL+C")
-	<-forever
+	body := "Hello from ampq client " + username
+	err = ch.Publish(
+		"",     // exchange
+		q.Name, // routing key
+		false,  // mandatory
+		false,  // immediate
+		amqp.Publishing{
+			ContentType: "text/plain",
+			Body:        []byte(body),
+		})
+	log.Printf(" [x] Sent %s", body)
+	failOnError(err, "Failed to publish a message")
 }

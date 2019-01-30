@@ -48,6 +48,7 @@ func writeResult(w http.ResponseWriter, ok bool) {
 	if _, err := fmt.Fprint(w, body); err != nil {
 		println("error writing response body", body)
 	}
+	fmt.Println(body)
 }
 
 // userPath handles a user authentication request
@@ -86,6 +87,18 @@ func resourcePath(w http.ResponseWriter, r *http.Request) {
 	return
 }
 
+// topicPath handles a topic authorisation request
+func topicPath(w http.ResponseWriter, r *http.Request) {
+	params := &topicAuthZ{}
+	if err := params.Parse(r.Form); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	fmt.Println(params)
+	writeResult(w, true)
+	return
+}
+
 func main() {
 	port := flag.String("port", "8001", "Port on which server listens (default: 8008)")
 	flag.Parse()
@@ -95,6 +108,7 @@ func main() {
 	router.HandleFunc("/auth/user", userPath)
 	router.HandleFunc("/auth/vhost", vhostPath)
 	router.HandleFunc("/auth/resource", resourcePath)
+	router.HandleFunc("/auth/topic", topicPath)
 
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%s", *port), handler(router)))
 }
