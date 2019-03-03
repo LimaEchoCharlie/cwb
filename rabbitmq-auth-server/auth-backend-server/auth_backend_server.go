@@ -1,7 +1,6 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"log"
 	"net/http"
@@ -59,7 +58,7 @@ func userPath(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	fmt.Println(params)
-	writeResult(w, true)
+	writeResult(w, false)
 	return
 }
 
@@ -100,15 +99,13 @@ func topicPath(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	port := flag.String("port", "8001", "Port on which server listens (default: 8008)")
-	flag.Parse()
-
 	// create router
 	router := mux.NewRouter()
 	router.HandleFunc("/auth/user", userPath)
 	router.HandleFunc("/auth/vhost", vhostPath)
 	router.HandleFunc("/auth/resource", resourcePath)
 	router.HandleFunc("/auth/topic", topicPath)
+	//log.Fatal(http.ListenAndServeTLS(":8008", "cert/auth_server.crt", "cert/auth_server.key", handler(router)))
 
-	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%s", *port), handler(router)))
+	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%s", "8008"), handler(router)))
 }

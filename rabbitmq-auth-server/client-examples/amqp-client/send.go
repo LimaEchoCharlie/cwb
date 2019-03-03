@@ -9,8 +9,8 @@ import (
 
 const (
 	username = "chinchilla"
-	password = "password"
-	vhost = "amqp-example"
+	password = "BdbpqBhtmF0Yc6ZOsWEo6bbBLsI"
+	vhost = "/"
 )
 
 func failOnError(err error, msg string) {

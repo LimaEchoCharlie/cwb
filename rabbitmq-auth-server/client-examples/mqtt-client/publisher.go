@@ -7,7 +7,8 @@ import (
 
 const (
 	username = "chinchilla"
-	password = "password"
+	//password = "password"
+	password = "BdbpqBhtmF0Yc6ZOsWEo6bbBLsI"
 	topic = "mqtt-example"
 	serverURI = "tcp://127.0.0.1:1883"
 )
