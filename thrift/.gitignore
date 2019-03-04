@@ -1,0 +1,4 @@
+gen-go/
+
+src/
+!src/.keep
