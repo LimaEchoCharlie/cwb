@@ -42,14 +42,27 @@ func handleClient(client *syml.SimpleServiceClient) (err error) {
 	client.Ping(defaultCtx)
 
 	fmt.Println("get string")
-	reply, _ = client.GetString(defaultCtx, "Bob")
+	if reply, err = client.GetString(defaultCtx, "Bob"); err != nil {
+		return err
+	}
 	fmt.Println(reply)
 
 	fmt.Println("run custom command")
 	exampleParams := exampleParameters{42, true, 3.14}
 	b, _ := json.Marshal(exampleParams)
-	reply, _ = client.RunCustomCommand(defaultCtx, "Bob", &syml.Command{"unpack", b})
+	if reply, err = client.RunCustomCommand(defaultCtx, "Bob", &syml.Command{"unpack", b}); err != nil {
+		return err
+	}
 	fmt.Println(reply)
+
+	fmt.Println("run custom command with unexpected command name")
+	_, expectedErr := client.RunCustomCommand(defaultCtx, "Bob", &syml.Command{"wrong", b})
+	switch v := expectedErr.(type){
+	case *syml.SimpleError:
+		fmt.Println(v.Message)
+	default:
+		fmt.Println(expectedErr)
+	}
 	return err
 }
 

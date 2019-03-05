@@ -1,4 +1,6 @@
+# ignore the thrift generated code
 gen-go/
 
-src/
+# ignore everything in src directory except the .keep file
+src/*
 !src/.keep

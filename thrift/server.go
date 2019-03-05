@@ -35,7 +35,12 @@ func (p *simpleHandler) GetString(ctx context.Context, id string) (r string, err
 }
 
 func (p *simpleHandler) RunCustomCommand(ctx context.Context, id string, cmd *syml.Command) (r string, err error){
-	fmt.Printf("parameters = %v\n", cmd.Parameters)
+	fmt.Printf("name - %s, parameters = %v\n", cmd.Name, cmd.Parameters)
+	if cmd.Name != "unpack" {
+		simpleErr := syml.NewSimpleError()
+		simpleErr.Message = fmt.Sprintf("Unexpected command name \"%s\"", cmd.Name)
+		return "", simpleErr
+	}
 	var parameters exampleParameters
 	if !cmd.IsSetParameters() {
 		fmt.Println("nil array")
