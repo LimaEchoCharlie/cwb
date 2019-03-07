@@ -33,4 +33,9 @@ service SimpleService {
 	* runCustomCommand checks how custom commands can be passed to the server
 	*/
 	string runCustomCommand(1:string id, 2:Command cmd) throws (1:SimpleError err),
+
+	/**
+     * snooze sleeps for the supplied number of seconds
+     */
+    void snooze(1:string id, 2:i64 secs),
 }

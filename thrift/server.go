@@ -25,6 +25,7 @@ import (
 	"syml"
 	"context"
 	"encoding/json"
+	"time"
 )
 
 type simpleHandler struct {
@@ -52,6 +53,13 @@ func (p *simpleHandler) RunCustomCommand(ctx context.Context, id string, cmd *sy
 
 func (p *simpleHandler) Ping(ctx context.Context) (err error) {
 	fmt.Print("ping()\n")
+	return nil
+}
+
+func (p *simpleHandler) Snooze(ctx context.Context, id string, secs int64) (err error){
+	fmt.Printf("snooze (%s) in:  %s\n", id, time.Now().Format("15:04:05"))
+	time.Sleep(time.Duration(secs) * time.Second)
+	fmt.Printf("snooze (%s) out: %s\n", id, time.Now().Format("15:04:05"))
 	return nil
 }
 

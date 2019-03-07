@@ -130,6 +130,6 @@ Examples produced using Thrift Compiler 0.11.0
 #### comments
 	# thrift comment
 	/*
-	 * Thrift alose supports multi-line C comments
+	 * Thrift also supports multi-line C comments
 	 */
 	//  ... and simple C comments

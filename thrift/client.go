@@ -63,6 +63,11 @@ func handleClient(client *syml.SimpleServiceClient) (err error) {
 	default:
 		fmt.Println(expectedErr)
 	}
+
+	fmt.Println("run snooze")
+	if err = client.Snooze(defaultCtx, "1", 2); err != nil {
+		return err
+	}
 	return err
 }
 
