@@ -26,6 +26,8 @@ import (
 	"context"
 	"encoding/json"
 	"time"
+	"os"
+	"flag"
 )
 
 type simpleHandler struct {
@@ -42,7 +44,7 @@ func (p *simpleHandler) RunCustomCommand(ctx context.Context, id string, cmd *sy
 		simpleErr.Message = fmt.Sprintf("Unexpected command name \"%s\"", cmd.Name)
 		return "", simpleErr
 	}
-	var parameters exampleParameters
+	var parameters syml.ExampleParameters
 	if !cmd.IsSetParameters() {
 		fmt.Println("nil array")
 	} else if err:=json.Unmarshal(cmd.Parameters, &parameters); err != nil {
@@ -74,4 +76,24 @@ func runServer(transportFactory thrift.TTransportFactory, protocolFactory thrift
 
 	fmt.Println("Starting the simple server... on ", addr)
 	return server.Serve()
+}
+
+func Usage() {
+	fmt.Fprint(os.Stderr, "Usage of ", os.Args[0], ":\n")
+	flag.PrintDefaults()
+	fmt.Fprint(os.Stderr, "\n")
+}
+
+func main() {
+	flag.Usage = Usage
+	addr := flag.String("addr", "localhost:9090", "Address to listen to")
+
+	flag.Parse()
+
+	protocolFactory := thrift.NewTBinaryProtocolFactoryDefault()
+	transportFactory := thrift.NewTTransportFactory()
+
+	if err := runServer(transportFactory, protocolFactory, *addr); err != nil {
+		fmt.Println("error running server:", err)
+	}
 }

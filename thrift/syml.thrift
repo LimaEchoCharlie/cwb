@@ -8,6 +8,15 @@ struct Command {
 }
 
 /**
+ *
+ */
+struct ExampleParameters {
+	1: i64 N,
+	2: bool B
+	3: double F
+}
+
+/**
  * exception containing an error message
  * exceptions convert into a GO error.
  * By default, all service methods return an error but exceptions are handy if you require an error type that is

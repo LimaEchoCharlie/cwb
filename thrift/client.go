@@ -26,15 +26,11 @@ import (
 
 	"github.com/apache/thrift/lib/go/thrift"
 	"encoding/json"
+	"os"
+	"flag"
 )
 
 var defaultCtx = context.Background()
-
-type exampleParameters struct {
-	N int `json:"n"`
-	B bool `json:"b"`
-	F float64 `json:"f"`
-}
 
 func handleClient(client *syml.SimpleServiceClient) (err error) {
 	var reply string
@@ -48,7 +44,7 @@ func handleClient(client *syml.SimpleServiceClient) (err error) {
 	fmt.Println(reply)
 
 	fmt.Println("run custom command")
-	exampleParams := exampleParameters{42, true, 3.14}
+	exampleParams := syml.ExampleParameters{42, true, 3.14}
 	b, _ := json.Marshal(exampleParams)
 	if reply, err = client.RunCustomCommand(defaultCtx, "Bob", &syml.Command{"unpack", b}); err != nil {
 		return err
@@ -90,4 +86,24 @@ func runClient(transportFactory thrift.TTransportFactory, protocolFactory thrift
 	iprot := protocolFactory.GetProtocol(transport)
 	oprot := protocolFactory.GetProtocol(transport)
 	return handleClient(syml.NewSimpleServiceClient(thrift.NewTStandardClient(iprot, oprot)))
+}
+
+func Usage() {
+	fmt.Fprint(os.Stderr, "Usage of ", os.Args[0], ":\n")
+	flag.PrintDefaults()
+	fmt.Fprint(os.Stderr, "\n")
+}
+
+func main() {
+	flag.Usage = Usage
+	addr := flag.String("addr", "localhost:9090", "Address to listen to")
+
+	flag.Parse()
+
+	protocolFactory := thrift.NewTBinaryProtocolFactoryDefault()
+	transportFactory := thrift.NewTTransportFactory()
+
+	if err := runClient(transportFactory, protocolFactory, *addr); err != nil {
+		fmt.Println("error running client:", err)
+	}
 }
