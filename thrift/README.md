@@ -34,15 +34,22 @@ Examples produced using Thrift Compiler 0.11.0
 
 ### struct
 	// Thrift
-	struct name {
-		1: bool elementOne,
+	struct structName {
+		1: bool elementOne = true, // with optional default value
 		2: binary elementTwo
 	}
 
-	// Go
-	type TypeName struct {
+	// generated Go code
+	type StructName struct {
 		ElementOne bool
 		ElementTwo []byte
+	}
+	// using the generated New stuct helper function instead of declaring a
+	// variable of type stuct directly will ensure that default values are honoured
+	func NewStructName() *StructName {
+		return &StructName{
+			ElementOne: true,
+		}
 	}
 
 ### union
@@ -52,7 +59,7 @@ Examples produced using Thrift Compiler 0.11.0
 		2: i8 elementTwo
 	}
 
-	// Go
+	// generated Go code
 	type UnionName struct {
 		ElementOne *bool
 		ElementTwo *int8
@@ -65,7 +72,7 @@ Examples produced using Thrift Compiler 0.11.0
 		2: int64 elementTwo
 	}
 
-	// Go
+	// generated Go code
 	type ErrorName struct {
 		ElementOne string
 		ElementTwo int64
@@ -83,7 +90,7 @@ Examples produced using Thrift Compiler 0.11.0
 		dance
 	}
 
-	// Go
+	// generated Go code
 	type EnumName int64
 	const (
 		EnumName_stop EnumName = 0
@@ -91,8 +98,6 @@ Examples produced using Thrift Compiler 0.11.0
 		EnumName_run EnumName = 10
 		EnumName_dance EnumName = 11
 	)
-
-	// Go helper functions
 	func (p EnumName) String() string {
 		switch p {
 			case EnumName_stop: return "stop"
@@ -117,14 +122,14 @@ Examples produced using Thrift Compiler 0.11.0
 	// Thrift
 	const i8 meaningOfLife = 42
 
-	// Go
+	// generated Go code
 	const MeaningOfLife = 42
 
 ### typedef
 	// Thrift
 	typedef i64 id
 
-	// Go
+	// generated Go code
 	type ID int64
 
 #### comments
