@@ -10,10 +10,10 @@
 	ln -s "$(pwd)/gen-go/syml" "$(pwd)/src/syml"
 	
 	# run server
-	env GOPATH=$GOPATH:"$(pwd)" go run *.go -server=true
+	env GOPATH=$GOPATH:"$(pwd)" go run server.go
 	
 	# run client
-	env GOPATH=$GOPATH:"$(pwd)" go run *.go
+	env GOPATH=$GOPATH:"$(pwd)" go run client.go
 
 ## Golang translations
 Examples produced using Thrift Compiler 0.11.0

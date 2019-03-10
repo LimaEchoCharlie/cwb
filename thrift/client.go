@@ -28,6 +28,7 @@ import (
 	"encoding/json"
 	"os"
 	"flag"
+	"image"
 )
 
 var defaultCtx = context.Background()
@@ -44,9 +45,8 @@ func handleClient(client *syml.SimpleServiceClient) (err error) {
 	fmt.Println(reply)
 
 	fmt.Println("run custom command")
-	exampleParams := syml.ExampleParameters{42, true, 3.14}
-	b, _ := json.Marshal(exampleParams)
-	if reply, err = client.RunCustomCommand(defaultCtx, "Bob", &syml.Command{"unpack", b}); err != nil {
+	b, _ := json.Marshal(image.Rect(1,2,3,5))
+	if reply, err = client.RunCustomCommand(defaultCtx, "Bob", &syml.Command{"area", b}); err != nil {
 		return err
 	}
 	fmt.Println(reply)

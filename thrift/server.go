@@ -28,6 +28,7 @@ import (
 	"time"
 	"os"
 	"flag"
+	"image"
 )
 
 type simpleHandler struct {
@@ -39,18 +40,18 @@ func (p *simpleHandler) GetString(ctx context.Context, id string) (r string, err
 
 func (p *simpleHandler) RunCustomCommand(ctx context.Context, id string, cmd *syml.Command) (r string, err error){
 	fmt.Printf("name - %s, parameters = %v\n", cmd.Name, cmd.Parameters)
-	if cmd.Name != "unpack" {
+	if cmd.Name != "area" {
 		simpleErr := syml.NewSimpleError()
 		simpleErr.Message = fmt.Sprintf("Unexpected command name \"%s\"", cmd.Name)
 		return "", simpleErr
 	}
-	var parameters syml.ExampleParameters
+	var rect image.Rectangle
 	if !cmd.IsSetParameters() {
 		fmt.Println("nil array")
-	} else if err:=json.Unmarshal(cmd.Parameters, &parameters); err != nil {
+	} else if err:=json.Unmarshal(cmd.Parameters, &rect); err != nil {
 		return "", err
 	}
-	return fmt.Sprintf("The meaning of life? %v",parameters.N), nil
+	return fmt.Sprintf("The area of the rectangle is %d", rect.Dx() * rect.Dy()), nil
 }
 
 func (p *simpleHandler) Ping(ctx context.Context) (err error) {
