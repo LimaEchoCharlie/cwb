@@ -29,6 +29,7 @@ import (
 	"os"
 	"flag"
 	"image"
+	"crypto/tls"
 )
 
 type simpleHandler struct {
@@ -67,7 +68,12 @@ func (p *simpleHandler) Snooze(ctx context.Context, id string, secs int64) (err 
 }
 
 func runServer(transportFactory thrift.TTransportFactory, protocolFactory thrift.TProtocolFactory, addr string) error {
-	transport, err := thrift.NewTServerSocket(addr)
+	cert, err := tls.LoadX509KeyPair("testdata/server-cert.pem", "testdata/server-key.pem")
+	if err != nil {
+		return err
+	}
+	cfg := &tls.Config{Certificates: []tls.Certificate{cert}}
+	transport, err := thrift.NewTSSLServerSocket(addr, cfg)
 	if err != nil {
 		return err
 	}
@@ -79,14 +85,14 @@ func runServer(transportFactory thrift.TTransportFactory, protocolFactory thrift
 	return server.Serve()
 }
 
-func Usage() {
-	fmt.Fprint(os.Stderr, "Usage of ", os.Args[0], ":\n")
+func serverUsage() {
+	fmt.Fprintln(os.Stderr, "Usage of server example:")
 	flag.PrintDefaults()
-	fmt.Fprint(os.Stderr, "\n")
+	fmt.Fprintln(os.Stderr, "")
 }
 
 func main() {
-	flag.Usage = Usage
+	flag.Usage = serverUsage
 	addr := flag.String("addr", "localhost:9090", "Address to listen to")
 
 	flag.Parse()

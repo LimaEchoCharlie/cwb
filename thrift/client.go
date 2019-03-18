@@ -31,11 +31,12 @@ import (
 	"image"
 	"sync"
 	"time"
+	"crypto/tls"
 )
 
 var defaultCtx = context.Background()
 
-func handleFullFunctionality(client *syml.SimpleServiceClient) (err error) {
+func fullHandler(client *syml.SimpleServiceClient) (err error) {
 	var reply string
 	fmt.Println("ping")
 	client.Ping(defaultCtx)
@@ -82,7 +83,10 @@ func createSnoozeHandler(i , secs int) func(client *syml.SimpleServiceClient) er
 func runClient(handler func(client *syml.SimpleServiceClient) error, transportFactory thrift.TTransportFactory, protocolFactory thrift.TProtocolFactory, addr string) error {
 	var transport thrift.TTransport
 	var err error
-	transport, err = thrift.NewTSocket(addr)
+
+	// set InsecureSkipVerify to true so that TLS accepts any certificate presented by the server
+	cfg := &tls.Config{InsecureSkipVerify: true}
+	transport, err = thrift.NewTSSLSocket(addr, cfg)
 	if err != nil {
 		fmt.Println("Error opening socket:", err)
 		return err
@@ -100,14 +104,18 @@ func runClient(handler func(client *syml.SimpleServiceClient) error, transportFa
 	return handler(syml.NewSimpleServiceClient(thrift.NewTStandardClient(iprot, oprot)))
 }
 
-func Usage() {
-	fmt.Fprint(os.Stderr, "Usage of ", os.Args[0], ":\n")
+func clientUsage() {
+	fmt.Fprintln(os.Stderr, "Usage of client example:")
 	flag.PrintDefaults()
-	fmt.Fprint(os.Stderr, "\n")
+	fmt.Fprintln(os.Stderr, "")
+	fmt.Fprintln(os.Stderr, "If nClients is zero, then a single client runs through all the server functions")
+	fmt.Fprintln(os.Stderr, "Otherwise, clients are created every second (up to nClients) that each call the")
+	fmt.Fprintln(os.Stderr, "snooze function of the server")
+	fmt.Fprintln(os.Stderr, "")
 }
 
 func main() {
-	flag.Usage = Usage
+	flag.Usage = clientUsage
 	addr := flag.String("addr", "localhost:9090", "Address to listen to")
 	nClients := flag.Int("multi", 0, "Number of clients")
 
@@ -117,7 +125,7 @@ func main() {
 	transportFactory := thrift.NewTTransportFactory()
 
 	if *nClients == 0 {
-		if err := runClient(handleFullFunctionality, transportFactory, protocolFactory, *addr); err != nil {
+		if err := runClient(fullHandler, transportFactory, protocolFactory, *addr); err != nil {
 			fmt.Println("error running client:", err)
 		}
 	} else {
