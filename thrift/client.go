@@ -84,8 +84,15 @@ func runClient(handler func(client *syml.SimpleServiceClient) error, transportFa
 	var transport thrift.TTransport
 	var err error
 
-	// set InsecureSkipVerify to true so that TLS accepts any certificate presented by the server
-	cfg := &tls.Config{InsecureSkipVerify: true}
+	cert, err := tls.LoadX509KeyPair("testdata/client-cert.pem", "testdata/client-key.pem")
+	if err != nil {
+		return err
+	}
+
+	cfg := &tls.Config{
+		Certificates: []tls.Certificate{cert},
+		InsecureSkipVerify: true, // accept any certificate presented by the server
+	}
 	transport, err = thrift.NewTSSLSocket(addr, cfg)
 	if err != nil {
 		fmt.Println("Error opening socket:", err)

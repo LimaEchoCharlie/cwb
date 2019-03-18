@@ -72,7 +72,10 @@ func runServer(transportFactory thrift.TTransportFactory, protocolFactory thrift
 	if err != nil {
 		return err
 	}
-	cfg := &tls.Config{Certificates: []tls.Certificate{cert}}
+	cfg := &tls.Config{
+		Certificates: []tls.Certificate{cert},
+		ClientAuth: tls.RequireAnyClientCert, // set the server's policy for TLS Client Authentication
+	}
 	transport, err := thrift.NewTSSLServerSocket(addr, cfg)
 	if err != nil {
 		return err
