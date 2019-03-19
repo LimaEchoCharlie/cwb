@@ -30,6 +30,8 @@ import (
 	"flag"
 	"image"
 	"crypto/tls"
+	"io/ioutil"
+	"crypto/x509"
 )
 
 type simpleHandler struct {
@@ -68,13 +70,27 @@ func (p *simpleHandler) Snooze(ctx context.Context, id string, secs int64) (err 
 }
 
 func runServer(transportFactory thrift.TTransportFactory, protocolFactory thrift.TProtocolFactory, addr string) error {
-	cert, err := tls.LoadX509KeyPair("testdata/server-cert.pem", "testdata/server-key.pem")
+	// load server certificate
+	serverCert, err := tls.LoadX509KeyPair("testdata/server-cert.pem", "testdata/server-key.pem")
 	if err != nil {
 		return err
 	}
+
+	// load client certificate and add to certificate pool
+	clientBytes, err := ioutil.ReadFile("testdata/client-cert.pem")
+	if err != nil {
+		return err
+	}
+	certPool := x509.NewCertPool()
+	ok := certPool.AppendCertsFromPEM(clientBytes)
+	if !ok {
+		fmt.Errorf("failed to append cert from PEM")
+	}
+
 	cfg := &tls.Config{
-		Certificates: []tls.Certificate{cert},
-		ClientAuth: tls.RequireAnyClientCert, // set the server's policy for TLS Client Authentication
+		Certificates: []tls.Certificate{serverCert},
+		ClientAuth: tls.RequireAndVerifyClientCert, // set the server's policy for TLS Client Authentication
+		ClientCAs: certPool,
 	}
 	transport, err := thrift.NewTSSLServerSocket(addr, cfg)
 	if err != nil {

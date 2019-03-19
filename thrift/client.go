@@ -32,6 +32,8 @@ import (
 	"sync"
 	"time"
 	"crypto/tls"
+	"io/ioutil"
+	"crypto/x509"
 )
 
 var defaultCtx = context.Background()
@@ -84,28 +86,39 @@ func runClient(handler func(client *syml.SimpleServiceClient) error, transportFa
 	var transport thrift.TTransport
 	var err error
 
-	cert, err := tls.LoadX509KeyPair("testdata/client-cert.pem", "testdata/client-key.pem")
+	// load client certificate and key
+	clientCert, err := tls.LoadX509KeyPair("testdata/client-cert.pem", "testdata/client-key.pem")
 	if err != nil {
 		return err
 	}
 
+	// load server certificate and add to certificate pool
+	serverBytes, err := ioutil.ReadFile("testdata/server-cert.pem")
+	if err != nil {
+		return err
+	}
+	certPool := x509.NewCertPool()
+	ok := certPool.AppendCertsFromPEM(serverBytes)
+	if !ok {
+		fmt.Errorf("failed to append cert from PEM")
+	}
+
 	cfg := &tls.Config{
-		Certificates: []tls.Certificate{cert},
-		InsecureSkipVerify: true, // accept any certificate presented by the server
+		Certificates: []tls.Certificate{clientCert},
+		RootCAs: certPool,
 	}
 	transport, err = thrift.NewTSSLSocket(addr, cfg)
 	if err != nil {
-		fmt.Println("Error opening socket:", err)
 		return err
 	}
 	transport, err = transportFactory.GetTransport(transport)
 	if err != nil {
 		return err
 	}
-	defer transport.Close()
 	if err := transport.Open(); err != nil {
 		return err
 	}
+	defer transport.Close()
 	iprot := protocolFactory.GetProtocol(transport)
 	oprot := protocolFactory.GetProtocol(transport)
 	return handler(syml.NewSimpleServiceClient(thrift.NewTStandardClient(iprot, oprot)))
