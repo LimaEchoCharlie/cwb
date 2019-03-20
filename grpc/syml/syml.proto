@@ -1,0 +1,18 @@
+syntax = "proto3";
+package syml;
+
+// SimpleService definition
+service SimpleService {
+	// snooze sleeps for the supplied number of seconds
+	rpc Snooze(SnoozeRequest) returns (Empty) {}
+}
+
+// The request message containing the user's name.
+message SnoozeRequest {
+	string id = 1;
+	int64 secs = 2;
+}
+
+// Empty request or response
+message Empty {
+}
