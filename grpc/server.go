@@ -13,6 +13,8 @@ import (
 	"net"
 	"syml"
 	"time"
+	"io/ioutil"
+	"crypto/x509"
 )
 
 // server will implement the syml.SimpleServiceServer interface
@@ -48,13 +50,26 @@ func main() {
 	}
 
 	// load server certificate and key
-	cert, err := tls.LoadX509KeyPair("testdata/server-cert.pem", "testdata/server-key.pem")
+	serverCert, err := tls.LoadX509KeyPair("testdata/server-cert.pem", "testdata/server-key.pem")
 	if err != nil {
 		log.Fatalf("failed to load server cert: %v", err)
 	}
+
+	// load client certificate and add to certificate pool
+	clientBytes, err := ioutil.ReadFile("testdata/client-cert.pem")
+	if err != nil {
+		log.Fatalf("failed to read client cert: %v", err)
+	}
+	certPool := x509.NewCertPool()
+	ok := certPool.AppendCertsFromPEM(clientBytes)
+	if !ok {
+		fmt.Errorf("failed to append cert from PEM")
+	}
+
 	cfg := &tls.Config{
-		Certificates: []tls.Certificate{cert},
-		ClientAuth:   tls.RequireAnyClientCert, // set the server's policy for TLS Client Authentication
+		Certificates: []tls.Certificate{serverCert},
+		ClientAuth:   tls.RequireAndVerifyClientCert, // set the server's policy for TLS Client Authentication
+		ClientCAs:    certPool,
 	}
 	s := grpc.NewServer(grpc.Creds(credentials.NewTLS(cfg)))
 	syml.RegisterSimpleServiceServer(s, &server{})

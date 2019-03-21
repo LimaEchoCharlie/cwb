@@ -3,12 +3,14 @@ package main
 import (
 	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"flag"
 	"fmt"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"image"
+	"io/ioutil"
 	"log"
 	"syml"
 	"sync"
@@ -24,9 +26,20 @@ func mustDial(addr string) *grpc.ClientConn {
 		log.Fatalf("failed to load client cert: %v", err)
 	}
 
+	// load server certificate and add to certificate pool
+	serverBytes, err := ioutil.ReadFile("testdata/server-cert.pem")
+	if err != nil {
+		log.Fatalf("failed to read server cert: %v", err)
+	}
+	certPool := x509.NewCertPool()
+	ok := certPool.AppendCertsFromPEM(serverBytes)
+	if !ok {
+		log.Fatalf("failed to append cert from PEM")
+	}
+
 	cfg := &tls.Config{
-		Certificates:       []tls.Certificate{clientCert},
-		InsecureSkipVerify: true,
+		Certificates: []tls.Certificate{clientCert},
+		RootCAs:      certPool,
 	}
 	// connect to the server
 	conn, err := grpc.Dial(addr, grpc.WithTransportCredentials(credentials.NewTLS(cfg)))
