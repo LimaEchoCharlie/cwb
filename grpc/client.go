@@ -11,13 +11,17 @@ import (
 	"syml"
 	"sync"
 	"time"
+	"google.golang.org/grpc/credentials"
+	"crypto/tls"
 )
 
 var defaultContext = context.Background()
 
 func mustDial(addr string) *grpc.ClientConn {
+	// set InsecureSkipVerify to true so that TLS accepts any certificate presented by the server
+	cfg := &tls.Config{InsecureSkipVerify: true}
 	// connect to the server
-	conn, err := grpc.Dial(addr, grpc.WithInsecure())
+	conn, err := grpc.Dial(addr, grpc.WithTransportCredentials(credentials.NewTLS(cfg)))
 	if err != nil {
 		log.Fatalf("did not connect: %v", err)
 	}
