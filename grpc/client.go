@@ -2,24 +2,32 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"flag"
 	"fmt"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 	"image"
 	"log"
 	"syml"
 	"sync"
 	"time"
-	"google.golang.org/grpc/credentials"
-	"crypto/tls"
 )
 
 var defaultContext = context.Background()
 
 func mustDial(addr string) *grpc.ClientConn {
-	// set InsecureSkipVerify to true so that TLS accepts any certificate presented by the server
-	cfg := &tls.Config{InsecureSkipVerify: true}
+	// load client certificate and key
+	clientCert, err := tls.LoadX509KeyPair("testdata/client-cert.pem", "testdata/client-key.pem")
+	if err != nil {
+		log.Fatalf("failed to load client cert: %v", err)
+	}
+
+	cfg := &tls.Config{
+		Certificates:       []tls.Certificate{clientCert},
+		InsecureSkipVerify: true,
+	}
 	// connect to the server
 	conn, err := grpc.Dial(addr, grpc.WithTransportCredentials(credentials.NewTLS(cfg)))
 	if err != nil {

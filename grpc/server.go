@@ -2,17 +2,17 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"flag"
 	"fmt"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 	"image"
 	"log"
 	"net"
 	"syml"
 	"time"
-	"google.golang.org/grpc/credentials"
-	"crypto/tls"
 )
 
 // server will implement the syml.SimpleServiceServer interface
@@ -46,13 +46,16 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}
+
 	// load server certificate and key
-	// Alternatively, we can use the helper function credentials.NewServerTLSFromFile
 	cert, err := tls.LoadX509KeyPair("testdata/server-cert.pem", "testdata/server-key.pem")
 	if err != nil {
 		log.Fatalf("failed to load server cert: %v", err)
 	}
-	cfg := &tls.Config{Certificates: []tls.Certificate{cert}}
+	cfg := &tls.Config{
+		Certificates: []tls.Certificate{cert},
+		ClientAuth:   tls.RequireAnyClientCert, // set the server's policy for TLS Client Authentication
+	}
 	s := grpc.NewServer(grpc.Creds(credentials.NewTLS(cfg)))
 	syml.RegisterSimpleServiceServer(s, &server{})
 	if err := s.Serve(lis); err != nil {
