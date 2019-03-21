@@ -5,6 +5,9 @@ package syml;
 service SimpleService {
 	// snooze sleeps for the supplied number of seconds
 	rpc Snooze(SnoozeRequest) returns (Empty) {}
+
+	// runCustomCommand checks how custom commands can be passed to the server
+	rpc CustomCommand(CommandRequest) returns (CommandResponse) {}
 }
 
 // The request message containing the user's name.
@@ -15,4 +18,16 @@ message SnoozeRequest {
 
 // Empty request or response
 message Empty {
+}
+
+// Custom command request
+message CommandRequest {
+	string id = 1;
+	string name = 2;
+	bytes parameters = 3;
+}
+
+// Custom command response
+message CommandResponse {
+	string message = 1;
 }
