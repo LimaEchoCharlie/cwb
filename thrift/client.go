@@ -39,25 +39,17 @@ import (
 var defaultCtx = context.Background()
 
 func fullHandler(client *syml.SimpleServiceClient) (err error) {
+	const id = "holl"
 	var reply string
-	fmt.Println("ping")
-	client.Ping(defaultCtx)
-
-	fmt.Println("get string")
-	if reply, err = client.GetString(defaultCtx, "Bob"); err != nil {
-		return err
-	}
-	fmt.Println(reply)
-
 	fmt.Println("run custom command")
 	b, _ := json.Marshal(image.Rect(1,2,3,5))
-	if reply, err = client.RunCustomCommand(defaultCtx, "Bob", &syml.Command{"area", b}); err != nil {
+	if reply, err = client.CustomCommand(defaultCtx, id, &syml.Command{"area", b}); err != nil {
 		return err
 	}
 	fmt.Println(reply)
 
 	fmt.Println("run custom command with unexpected command name")
-	_, expectedErr := client.RunCustomCommand(defaultCtx, "Bob", &syml.Command{"wrong", b})
+	_, expectedErr := client.CustomCommand(defaultCtx, id, &syml.Command{"wrong", b})
 	switch v := expectedErr.(type){
 	case *syml.SimpleError:
 		fmt.Println(v.Message)
@@ -66,7 +58,7 @@ func fullHandler(client *syml.SimpleServiceClient) (err error) {
 	}
 
 	fmt.Println("run snooze")
-	if err = client.Snooze(defaultCtx, "1", 2); err != nil {
+	if err = client.Snooze(defaultCtx, id, 2); err != nil {
 		return err
 	}
 	return err

@@ -6,7 +6,7 @@ service SimpleService {
 	// snooze sleeps for the supplied number of seconds
 	rpc Snooze(SnoozeRequest) returns (Empty) {}
 
-	// runCustomCommand checks how custom commands can be passed to the server
+	// CustomCommand checks how custom commands can be passed to the server
 	rpc CustomCommand(CommandRequest) returns (CommandResponse) {}
 }
 

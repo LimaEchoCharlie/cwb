@@ -50,21 +50,21 @@ func mustDial(addr string) *grpc.ClientConn {
 }
 
 func runFullWorkflow(client syml.SimpleServiceClient) (err error) {
-	const ID = "holl"
+	const id = "holl"
 	fmt.Println("run custom command")
 	var cmdResponse *syml.CommandResponse
 	b, _ := json.Marshal(image.Rect(1, 2, 3, 5))
-	if cmdResponse, err = client.CustomCommand(defaultContext, &syml.CommandRequest{Id: ID, Name: "area", Parameters: b}); err != nil {
+	if cmdResponse, err = client.CustomCommand(defaultContext, &syml.CommandRequest{Id: id, Name: "area", Parameters: b}); err != nil {
 		return err
 	}
 	fmt.Println(cmdResponse)
 
 	fmt.Println("run custom command with unexpected command name")
-	_, expectedErr := client.CustomCommand(defaultContext, &syml.CommandRequest{Id: ID, Name: "wrong", Parameters: b})
+	_, expectedErr := client.CustomCommand(defaultContext, &syml.CommandRequest{Id: id, Name: "wrong", Parameters: b})
 	fmt.Println(expectedErr)
 
 	fmt.Println("run snooze")
-	if _, err = client.Snooze(defaultContext, &syml.SnoozeRequest{Id: ID, Secs: 2}); err != nil {
+	if _, err = client.Snooze(defaultContext, &syml.SnoozeRequest{Id: id, Secs: 2}); err != nil {
 		return err
 	}
 	return nil

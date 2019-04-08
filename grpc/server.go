@@ -28,6 +28,7 @@ func (s *server) Snooze(ctx context.Context, in *syml.SnoozeRequest) (*syml.Empt
 }
 
 func (s *server) CustomCommand(ctx context.Context, in *syml.CommandRequest) (*syml.CommandResponse, error) {
+	fmt.Printf("custom command (%s) name:  %s\n", in.Id, in.Name)
 	response := new(syml.CommandResponse)
 	if in.Name != "area" {
 		return response, fmt.Errorf("Unexpected command name \"%s\"", in.Name)
@@ -73,6 +74,8 @@ func main() {
 	}
 	s := grpc.NewServer(grpc.Creds(credentials.NewTLS(cfg)))
 	syml.RegisterSimpleServiceServer(s, &server{})
+
+	fmt.Println("Starting the gRPC simple server... on ", *addr)
 	if err := s.Serve(lis); err != nil {
 		log.Fatalf("failed to serve: %v", err)
 	}

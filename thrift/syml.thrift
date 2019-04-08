@@ -18,21 +18,10 @@ exception SimpleError {
 }
 
 service SimpleService {
-
 	/**
-	* ping the service
+	* customCommand checks how custom commands can be passed to the server
 	*/
-	void ping(),
-
-	/**
-	* getString returns a string containing the supplied id
-	*/
-	string getString(1:string id),
-
-	/**
-	* runCustomCommand checks how custom commands can be passed to the server
-	*/
-	string runCustomCommand(1:string id, 2:Command cmd) throws (1:SimpleError err),
+	string customCommand(1:string id, 2:Command cmd) throws (1:SimpleError err),
 
 	/**
      * snooze sleeps for the supplied number of seconds

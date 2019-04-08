@@ -20,29 +20,25 @@ package main
  */
 
 import (
+	"context"
+	"crypto/tls"
+	"crypto/x509"
+	"encoding/json"
+	"flag"
 	"fmt"
 	"github.com/apache/thrift/lib/go/thrift"
-	"syml"
-	"context"
-	"encoding/json"
-	"time"
-	"os"
-	"flag"
 	"image"
-	"crypto/tls"
 	"io/ioutil"
-	"crypto/x509"
+	"os"
+	"syml"
+	"time"
 )
 
 type simpleHandler struct {
 }
 
-func (p *simpleHandler) GetString(ctx context.Context, id string) (r string, err error){
-	return fmt.Sprintf("Hello from %s", id), nil
-}
-
-func (p *simpleHandler) RunCustomCommand(ctx context.Context, id string, cmd *syml.Command) (r string, err error){
-	fmt.Printf("name - %s, parameters = %v\n", cmd.Name, cmd.Parameters)
+func (p *simpleHandler) CustomCommand(ctx context.Context, id string, cmd *syml.Command) (r string, err error) {
+	fmt.Printf("custom command (%s) name:  %s\n", id, cmd.Name)
 	if cmd.Name != "area" {
 		simpleErr := syml.NewSimpleError()
 		simpleErr.Message = fmt.Sprintf("Unexpected command name \"%s\"", cmd.Name)
@@ -51,18 +47,13 @@ func (p *simpleHandler) RunCustomCommand(ctx context.Context, id string, cmd *sy
 	var rect image.Rectangle
 	if !cmd.IsSetParameters() {
 		fmt.Println("nil array")
-	} else if err:=json.Unmarshal(cmd.Parameters, &rect); err != nil {
+	} else if err := json.Unmarshal(cmd.Parameters, &rect); err != nil {
 		return "", err
 	}
-	return fmt.Sprintf("The area of the rectangle is %d", rect.Dx() * rect.Dy()), nil
+	return fmt.Sprintf("The area of the rectangle is %d", rect.Dx()*rect.Dy()), nil
 }
 
-func (p *simpleHandler) Ping(ctx context.Context) (err error) {
-	fmt.Print("ping()\n")
-	return nil
-}
-
-func (p *simpleHandler) Snooze(ctx context.Context, id string, secs int64) (err error){
+func (p *simpleHandler) Snooze(ctx context.Context, id string, secs int64) (err error) {
 	fmt.Printf("snooze (%s) in:  %s\n", id, time.Now().Format("15:04:05"))
 	time.Sleep(time.Duration(secs) * time.Second)
 	fmt.Printf("snooze (%s) out: %s\n", id, time.Now().Format("15:04:05"))
@@ -89,18 +80,17 @@ func runServer(transportFactory thrift.TTransportFactory, protocolFactory thrift
 
 	cfg := &tls.Config{
 		Certificates: []tls.Certificate{serverCert},
-		ClientAuth: tls.RequireAndVerifyClientCert, // set the server's policy for TLS Client Authentication
-		ClientCAs: certPool,
+		ClientAuth:   tls.RequireAndVerifyClientCert, // set the server's policy for TLS Client Authentication
+		ClientCAs:    certPool,
 	}
 	transport, err := thrift.NewTSSLServerSocket(addr, cfg)
 	if err != nil {
 		return err
 	}
-	fmt.Printf("%T\n", transport)
 	processor := syml.NewSimpleServiceProcessor(&simpleHandler{})
 	server := thrift.NewTSimpleServer4(processor, transport, transportFactory, protocolFactory)
 
-	fmt.Println("Starting the simple server... on ", addr)
+	fmt.Println("Starting the Thrift simple server... on ", addr)
 	return server.Serve()
 }
 
