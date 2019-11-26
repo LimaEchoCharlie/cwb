@@ -4,13 +4,24 @@ import (
 	"github.com/flynn/noise"
 )
 
-type ClientMessenger interface {
-	SendReceive(message []byte) (reply []byte, err error)
+var (
+	diffieHellman = noise.DH25519
+	cipher = noise.CipherAESGCM
+	hash = noise.HashSHA512
+)
+
+type CipherStatePair struct {
+	Decrypter *noise.CipherState
+	Encrypter *noise.CipherState
 }
 
-func ClientHandshake(client ClientMessenger) (encrypter *noise.CipherState, decrypter *noise.CipherState, err error) {
+type ClientMessenger interface {
+	Exchange(message []byte) (reply []byte, err error)
+}
 
-	cs := noise.NewCipherSuite(noise.DH25519, noise.CipherAESGCM, noise.HashSHA512)
+func ClientHandshake(client ClientMessenger) (csPair CipherStatePair, err error) {
+
+	cs := noise.NewCipherSuite(diffieHellman, cipher, hash)
 
 	handshakeState, _ := noise.NewHandshakeState(noise.Config{
 		CipherSuite: cs,
@@ -19,49 +30,45 @@ func ClientHandshake(client ClientMessenger) (encrypter *noise.CipherState, decr
 	})
 	msg, _, _, err := handshakeState.WriteMessage(nil, nil)
 	if err != nil {
-		return nil, nil, err
+		return csPair, err
 	}
-	encryptedReply, err := client.SendReceive(msg)
+	encryptedReply, err := client.Exchange(msg)
 	if err != nil {
-		return nil, nil, err
+		return csPair, err
 	}
-	_, encrypter, decrypter, err = handshakeState.ReadMessage(nil, encryptedReply)
+	_, csPair.Encrypter, csPair.Decrypter, err = handshakeState.ReadMessage(nil, encryptedReply)
 	if err != nil {
-		return encrypter, decrypter, err
+		return csPair, err
 	}
-	return encrypter, decrypter, err
+	return csPair, err
 }
 
 type ServerMessenger interface {
-	Receive() (message []byte, err error)
 	Send(message []byte) (err error)
 }
 
-func ServerHandshake(server ServerMessenger) (decrypter *noise.CipherState, encrypter *noise.CipherState, err error) {
+func ServerHandshake(server ServerMessenger, initiator []byte) (csPair CipherStatePair, err error) {
 
-	cs := noise.NewCipherSuite(noise.DH25519, noise.CipherAESGCM, noise.HashSHA512)
+	cs := noise.NewCipherSuite(diffieHellman, cipher, hash)
 
 	handshakeState, _ := noise.NewHandshakeState(noise.Config{
 		CipherSuite: cs,
 		Pattern:     noise.HandshakeNN,
 		Initiator:   false,
 	})
-	encodedMessage, err := server.Receive()
+	_, _, _, err = handshakeState.ReadMessage(nil, initiator)
 	if err != nil {
-		return nil, nil, err
-	}
-	_, _, _, err = handshakeState.ReadMessage(nil, encodedMessage)
-	if err != nil {
-		return nil, nil, err
+		return csPair, err
 	}
 
-	encodedReply, decrypter, encrypter, err := handshakeState.WriteMessage(nil, nil)
+	var encodedReply []byte
+	encodedReply, csPair.Decrypter, csPair.Encrypter, err = handshakeState.WriteMessage(nil, nil)
 	if err != nil {
-		return nil, nil, err
+		return csPair, err
 	}
 	err = server.Send(encodedReply)
 	if err != nil {
-		return nil, nil, err
+		return csPair, err
 	}
-	return decrypter, encrypter, nil
+	return csPair, nil
 }
