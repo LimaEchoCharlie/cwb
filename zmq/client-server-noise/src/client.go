@@ -13,7 +13,7 @@ type zmqClientMessenger struct {
 	*zmq.Socket
 }
 
-func (z zmqClientMessenger) SendReceive(message []byte) (reply []byte, err error) {
+func (z zmqClientMessenger) Exchange(message []byte) (reply []byte, err error) {
 	_, err = z.SendBytes(message,0)
 	if err != nil {
 		return
@@ -42,7 +42,7 @@ func main() {
 	defer socket.Disconnect(endpoint)
 
 	log.Printf("Initiate client handshake")
-	encrypter, decrypter, err := noise.ClientHandshake(zmqClientMessenger{socket})
+	csPair, err := noise.ClientHandshake(zmqClientMessenger{socket})
 	if err != nil {
 		log.Println("Error", err)
 	}
@@ -54,7 +54,7 @@ func main() {
 		if scanner.Text() == "q" {
 			break
 		}
-		encryptedMessage := encrypter.Encrypt(nil, nil, scanner.Bytes())
+		encryptedMessage := csPair.Encrypter.Encrypt(nil, nil, scanner.Bytes())
 		log.Printf("Sending \"%s\", encrypted %q", scanner.Text(), encryptedMessage)
 
 		_, err := socket.SendBytes(encryptedMessage,0)
@@ -67,7 +67,7 @@ func main() {
 			log.Fatal(err)
 		}
 
-		reply, err := decrypter.Decrypt(nil, nil, encryptedReply)
+		reply, err := csPair.Decrypter.Decrypt(nil, nil, encryptedReply)
 		if err != nil {
 			log.Fatal(err)
 		}
