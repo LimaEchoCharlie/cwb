@@ -10,7 +10,7 @@ import (
 )
 
 func main() {
-	co, err := coap.Dial("udp", "localhost:5688")
+	clientConn, err := coap.Dial("udp", "localhost:5688")
 	if err != nil {
 		log.Fatalf("Error dialing: %v", err)
 	}
@@ -27,7 +27,7 @@ func main() {
 		}
 		ctx, cancel = context.WithTimeout(context.Background(), time.Second)
 
-		message, err := co.NewGetRequest("/reverse")
+		message, err := clientConn.NewGetRequest("/reverse")
 		if err != nil {
 			log.Printf("Error creating request: %v", err)
 			continue
@@ -35,7 +35,7 @@ func main() {
 		log.Printf("Sending: \"%s\"", scanner.Text())
 		message.SetQueryString(scanner.Text())
 
-		response, err := co.ExchangeWithContext(ctx, message)
+		response, err := clientConn.ExchangeWithContext(ctx, message)
 		if err != nil {
 			log.Printf("Error sending request: %v", err)
 			continue
