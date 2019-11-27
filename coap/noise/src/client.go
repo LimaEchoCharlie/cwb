@@ -15,14 +15,21 @@ import (
 // coapClientMessenger satisfies the ClientMessenger in the noise wrapper library
 type coapClientMessenger struct {
 	clientConn *coap.ClientConn
+	token []byte	// hold the token used during the handshake
 }
 
-func (c coapClientMessenger) SendReceive(message []byte) (reply []byte, err error) {
+func (c *coapClientMessenger) Exchange(message []byte) (reply []byte, err error) {
 	replyMessage, err := c.clientConn.Post("/handshake", coap.TextPlain, bytes.NewReader(message))
 	if replyMessage.Code() != coap.Changed {
 		err = fmt.Errorf("unexpected status response: %s", replyMessage.Code())
 	}
+	c.token = replyMessage.Token()
 	return replyMessage.Payload(), err
+}
+
+// newCOAPClientMessenger creates a new COAP client messenger
+func newCOAPClientMessenger(conn *coap.ClientConn) *coapClientMessenger {
+	return &coapClientMessenger{clientConn:conn}
 }
 
 func main() {
@@ -31,7 +38,8 @@ func main() {
 		log.Fatalf("Error dialing: %v", err)
 	}
 	log.Println("Initialising handshake...")
-	encrypter, decrypter, err := noise.ClientHandshake(coapClientMessenger{clientConn:clientConn})
+	messenger := newCOAPClientMessenger(clientConn)
+	csPair, err := noise.ClientHandshake(messenger)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -47,15 +55,19 @@ func main() {
 		if scanner.Text() == "q" {
 			break
 		}
-		ctx, cancel = context.WithTimeout(context.Background(), time.Second)
+		ctx, cancel = context.WithTimeout(context.Background(), 5 * time.Second)
 		message, err := clientConn.NewGetRequest("/reverse")
 		if err != nil {
 			log.Printf("Error creating request: %v", err)
 			continue
 		}
-		encryptedText := encrypter.Encrypt(nil, nil, scanner.Bytes())
+		encryptedText := csPair.Encrypter.Encrypt(nil, nil, scanner.Bytes())
 		log.Printf("Sending: \"%s\", encrypted %q", scanner.Text(), encryptedText)
 		message.SetQueryString(string(encryptedText))
+
+		// re-use the token from the handshake exchange so the server knows which cipher states to use
+		// should not be used for concurrent requests
+		message.SetToken(messenger.token)
 
 		response, err := clientConn.ExchangeWithContext(ctx, message)
 		if err != nil {
@@ -67,7 +79,7 @@ func main() {
 			continue
 		}
 
-		decryptedReply, err := decrypter.Decrypt(nil, nil, response.Payload())
+		decryptedReply, err := csPair.Decrypter.Decrypt(nil, nil, response.Payload())
 		if err != nil {
 			log.Println(err)
 			continue
