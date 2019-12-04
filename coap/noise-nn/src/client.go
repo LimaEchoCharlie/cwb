@@ -1,21 +1,22 @@
 package main
 
 import (
+	"bufio"
+	"bytes"
+	"context"
+	"encoding/json"
+	"fmt"
 	"github.com/go-ocf/go-coap"
+	"github.com/limaechocharlie/cwb/shared/noise"
 	"log"
 	"os"
-	"bufio"
 	"time"
-	"context"
-	"bytes"
-	"github.com/limaechocharlie/cwb/shared/noise"
-	"fmt"
 )
 
 // coapClientMessenger satisfies the ClientMessenger in the noise wrapper library
 type coapClientMessenger struct {
 	clientConn *coap.ClientConn
-	token []byte	// hold the token used during the handshake
+	token      []byte // hold the token used during the handshake
 }
 
 func (c *coapClientMessenger) Exchange(message []byte) (reply []byte, err error) {
@@ -29,7 +30,12 @@ func (c *coapClientMessenger) Exchange(message []byte) (reply []byte, err error)
 
 // newCOAPClientMessenger creates a new COAP client messenger
 func newCOAPClientMessenger(conn *coap.ClientConn) *coapClientMessenger {
-	return &coapClientMessenger{clientConn:conn}
+	return &coapClientMessenger{clientConn: conn}
+}
+
+type reverseRequest struct {
+	SessionID noise.EncryptionSessionID
+	Payload   []byte
 }
 
 func main() {
@@ -39,7 +45,7 @@ func main() {
 	}
 	log.Println("Initialising handshake...")
 	messenger := newCOAPClientMessenger(clientConn)
-	csPair, err := noise.ClientHandshake(messenger)
+	sessionID, csPair, err := noise.ClientHandshake(messenger)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -55,26 +61,23 @@ func main() {
 		if scanner.Text() == "q" {
 			break
 		}
-		ctx, cancel = context.WithTimeout(context.Background(), 5 * time.Second)
-		message, err := clientConn.NewGetRequest("/reverse")
-		if err != nil {
-			log.Printf("Error creating request: %v", err)
-			continue
-		}
 		encryptedText := csPair.Encrypter.Encrypt(nil, nil, scanner.Bytes())
 		log.Printf("Sending: \"%s\", encrypted %q", scanner.Text(), encryptedText)
-		message.SetQueryString(string(encryptedText))
 
-		// re-use the token from the handshake exchange so the server knows which cipher states to use
-		// should not be used for concurrent requests
-		message.SetToken(messenger.token)
+		request, err := json.Marshal(reverseRequest{SessionID: sessionID, Payload: encryptedText})
+		if err != nil {
+			log.Printf("Error marshalling request: %v", err)
+			continue
+		}
 
-		response, err := clientConn.ExchangeWithContext(ctx, message)
+		ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
+		response, err := clientConn.PostWithContext(ctx, "/reverse", coap.TextPlain, bytes.NewBuffer(request))
 		if err != nil {
 			log.Printf("Error sending request: %v", err)
 			continue
 		}
-		if response.Code() != coap.Content {
+
+		if response.Code() != coap.Changed {
 			log.Printf("Unexpected code: \"%s\"", response.Code())
 			continue
 		}
