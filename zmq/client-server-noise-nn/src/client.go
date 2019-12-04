@@ -6,15 +6,24 @@ import (
 	"bufio"
 	"os"
 	"github.com/limaechocharlie/cwb/shared/noise"
+	"encoding/json"
 )
 
+type requestMessage struct {
+	SessionID noise.EncryptionSessionID
+	Payload   []byte
+}
 
 type zmqClientMessenger struct {
 	*zmq.Socket
 }
 
 func (z zmqClientMessenger) Exchange(message []byte) (reply []byte, err error) {
-	_, err = z.SendBytes(message,0)
+	request, err := json.Marshal(requestMessage{SessionID: noise.HandshakeSessionID, Payload:message})
+	if err != nil {
+		return
+	}
+	_, err = z.SendBytes(request,0)
 	if err != nil {
 		return
 	}
@@ -42,11 +51,11 @@ func main() {
 	defer socket.Disconnect(endpoint)
 
 	log.Printf("Initiate client handshake")
-	csPair, err := noise.ClientHandshake(zmqClientMessenger{socket})
+	sessionID, csPair, err := noise.ClientHandshake(zmqClientMessenger{socket})
 	if err != nil {
-		log.Println("Error", err)
+		log.Fatal(err)
 	}
-	log.Printf("Handshake completed")
+	log.Printf("Handshake completed (ID:%d)", sessionID)
 
 	log.Println("Type messages to send, enter 'q' to exit.")
 	scanner := bufio.NewScanner(os.Stdin)
@@ -56,8 +65,12 @@ func main() {
 		}
 		encryptedMessage := csPair.Encrypter.Encrypt(nil, nil, scanner.Bytes())
 		log.Printf("Sending \"%s\", encrypted %q", scanner.Text(), encryptedMessage)
+		request, err := json.Marshal(requestMessage{SessionID:sessionID, Payload:encryptedMessage})
+		if err != nil {
+			log.Fatal(err)
+		}
 
-		_, err := socket.SendBytes(encryptedMessage,0)
+		_, err = socket.SendBytes(request,0)
 		if err != nil {
 			log.Fatal(err)
 		}

@@ -21,7 +21,7 @@ RUN tar xf zeromq-4.2.5.tar.gz && \
     go get github.com/pebbe/zmq4
 
 RUN go get github.com/flynn/noise && \
-    go get github.com/limaechocharlie/cwb/shared/noise
+    go get -u github.com/limaechocharlie/cwb/shared/noise
 
 # add examples
 ADD src /go/src
