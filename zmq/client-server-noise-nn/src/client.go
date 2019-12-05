@@ -1,17 +1,23 @@
 package main
 
 import (
-	"log"
-	zmq "github.com/pebbe/zmq4/draft"
 	"bufio"
-	"os"
-	"github.com/limaechocharlie/cwb/shared/noise"
 	"encoding/json"
+	"github.com/limaechocharlie/cwb/shared/noise"
+	zmq "github.com/pebbe/zmq4/draft"
+	"log"
+	"os"
+)
+
+const (
+	handshakeType = 0
+	reverseType = 1
 )
 
 type requestMessage struct {
-	SessionID noise.EncryptionSessionID
-	Payload   []byte
+	MessageType int // 0 = handshake, 1 = reverse
+	ChannelID   noise.ChannelID
+	Payload     []byte
 }
 
 type zmqClientMessenger struct {
@@ -19,11 +25,11 @@ type zmqClientMessenger struct {
 }
 
 func (z zmqClientMessenger) Exchange(message []byte) (reply []byte, err error) {
-	request, err := json.Marshal(requestMessage{SessionID: noise.HandshakeSessionID, Payload:message})
+	request, err := json.Marshal(requestMessage{MessageType: handshakeType, Payload: message})
 	if err != nil {
 		return
 	}
-	_, err = z.SendBytes(request,0)
+	_, err = z.SendBytes(request, 0)
 	if err != nil {
 		return
 	}
@@ -33,7 +39,7 @@ func (z zmqClientMessenger) Exchange(message []byte) (reply []byte, err error) {
 func main() {
 	log.Println("Zeromq Client")
 	const endpoint = "tcp://127.0.0.1:5556"
- 	socket, err := zmq.NewSocket(zmq.CLIENT)
+	socket, err := zmq.NewSocket(zmq.CLIENT)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -51,11 +57,11 @@ func main() {
 	defer socket.Disconnect(endpoint)
 
 	log.Printf("Initiate client handshake")
-	sessionID, csPair, err := noise.ClientHandshake(zmqClientMessenger{socket})
+	channelID, csPair, err := noise.ClientHandshake(zmqClientMessenger{socket})
 	if err != nil {
 		log.Fatal(err)
 	}
-	log.Printf("Handshake completed (ID:%d)", sessionID)
+	log.Println("Handshake complete")
 
 	log.Println("Type messages to send, enter 'q' to exit.")
 	scanner := bufio.NewScanner(os.Stdin)
@@ -65,12 +71,12 @@ func main() {
 		}
 		encryptedMessage := csPair.Encrypter.Encrypt(nil, nil, scanner.Bytes())
 		log.Printf("Sending \"%s\", encrypted %q", scanner.Text(), encryptedMessage)
-		request, err := json.Marshal(requestMessage{SessionID:sessionID, Payload:encryptedMessage})
+		request, err := json.Marshal(requestMessage{MessageType: reverseType, ChannelID: channelID, Payload: encryptedMessage})
 		if err != nil {
 			log.Fatal(err)
 		}
 
-		_, err = socket.SendBytes(request,0)
+		_, err = socket.SendBytes(request, 0)
 		if err != nil {
 			log.Fatal(err)
 		}

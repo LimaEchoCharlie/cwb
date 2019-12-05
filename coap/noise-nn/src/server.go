@@ -6,14 +6,13 @@ import (
 	"github.com/go-ocf/go-coap"
 	"github.com/limaechocharlie/cwb/shared/noise"
 	"log"
-	"math/rand"
 	"time"
 )
 
-type clientCiphers map[noise.EncryptionSessionID]noise.CipherStatePair
+type clientCiphers map[uint64]noise.CipherStatePair
 
 type inboundMessage struct {
-	SessionID noise.EncryptionSessionID
+	ChannelID noise.ChannelID
 	Payload   []byte
 }
 
@@ -34,13 +33,20 @@ func (c coapServerMessenger) Send(message []byte) (err error) {
 func handshakeHandler(ciphers clientCiphers) coap.HandlerFunc {
 	return func(w coap.ResponseWriter, req *coap.Request) {
 		log.Println("Client has initiated handshake")
-		sessionID := noise.EncryptionSessionID(rand.Uint32())
-		csPair, err := noise.ServerHandshake(coapServerMessenger{w, req}, sessionID, req.Msg.Payload())
+		channelID, csPair, err := noise.ServerHandshake(coapServerMessenger{w, req}, req.Msg.Payload())
 		if err != nil {
-			log.Fatal(err)
+			log.Println(err)
+			w.SetCode(coap.InternalServerError)
+			return
 		}
-		ciphers[sessionID] = csPair
-		log.Println("Handshake with client completed")
+		id, ok := channelID.UInt64()
+		if !ok {
+			log.Println("Unable to encode channel ID into an integer")
+			w.SetCode(coap.InternalServerError)
+			return
+		}
+		ciphers[id] = csPair
+		log.Printf("Handshake with client completed [id: %d]", id)
 	}
 }
 
@@ -58,7 +64,13 @@ func reverseHandler(ciphers clientCiphers) coap.HandlerFunc {
 			return
 		}
 
-		csPair, ok := ciphers[inbound.SessionID]
+		id, ok := inbound.ChannelID.UInt64()
+		if !ok {
+			log.Println("Unable to encode channel ID into an integer")
+			w.SetCode(coap.BadRequest)
+			return
+		}
+		csPair, ok := ciphers[id]
 		if !ok {
 			w.SetCode(coap.Unauthorized)
 			return

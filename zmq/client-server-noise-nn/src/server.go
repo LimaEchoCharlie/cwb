@@ -4,7 +4,6 @@ import (
 	"log"
 	zmq "github.com/pebbe/zmq4/draft"
 	"github.com/limaechocharlie/cwb/shared/noise"
-	"math/rand"
 	"encoding/json"
 )
 
@@ -19,8 +18,9 @@ func (z *zmqServerMessenger) Send(message []byte) (err error)  {
 }
 
 type inboundMessage struct {
-	SessionID noise.EncryptionSessionID
-	Payload   []byte
+	MessageType int // o = handshake, 1 = reverse
+	ChannelID   noise.ChannelID
+	Payload     []byte
 }
 
 func main() {
@@ -41,48 +41,67 @@ func main() {
 		log.Fatal(err)
 	}
 
-	clients := make(map[noise.EncryptionSessionID]noise.CipherStatePair)
+	clients := make(map[uint64]noise.CipherStatePair)
 
+forLoop:
 	for {
 		if b, opts, err := socket.RecvBytesWithOpts(0, zmq.OptRoutingId(0)); err == nil {
 			routingId, ok := opts[0].(zmq.OptRoutingId)
 			if !ok {
 				log.Printf("%T is not of type OptRoutingId", opts[0])
-				continue
+				continue forLoop
 			}
 			inbound := inboundMessage{}
 			if err := json.Unmarshal(b, &inbound); err != nil {
 				log.Println(err)
-				continue
+				continue forLoop
 			}
-			var cipherStates noise.CipherStatePair
-			if inbound.SessionID == noise.HandshakeSessionID {
-				id := noise.EncryptionSessionID(rand.Uint32())
-				cipherStates, err = noise.ServerHandshake(
+			switch inbound.MessageType {
+			case 0:
+				// handshake
+				log.Println("Client has initiated handshake")
+				channelID, csPair, err := noise.ServerHandshake(
 					&zmqServerMessenger{socket, routingId},
-					id,
 					inbound.Payload)
 				if err != nil {
 					log.Println(err)
-					continue
+					continue forLoop
 				}
-				clients[id] = cipherStates
-				continue
-			} else if cipherStates, ok = clients[inbound.SessionID]; !ok {
-				log.Printf("Can't find encryption session %d", inbound.SessionID)
-				continue
+
+				id, ok := channelID.UInt64()
+				if !ok {
+					log.Println("Unable to encode channel ID into an integer")
+					continue forLoop
+				}
+				clients[id] = csPair
+				log.Printf("Handshake with client completed [id: %d]", id)
+			case 1:
+				// reverse
+				id, ok := inbound.ChannelID.UInt64()
+				if !ok {
+					log.Println("Unable to encode channel ID into an integer")
+					continue forLoop
+				}
+				csPair, ok := clients[id]
+				if!ok {
+					log.Printf("Can't find channel id %d", id)
+					continue forLoop
+				}
+				payload, err := csPair.Decrypter.Decrypt(nil, nil, inbound.Payload)
+				if err != nil {
+					log.Printf("Failed to decrypt payload; %s", err)
+					continue forLoop
+				}
+				log.Printf("Received %q, decrypted \"%s\"", string(b), string(payload))
+				for i, j := 0, len(payload)-1; i < j; i, j = i+1, j-1 {
+					payload[i], payload[j] = payload[j], payload[i]
+				}
+				encryptedReply := csPair.Encrypter.Encrypt(nil, nil, payload)
+				log.Printf("Replying \"%s\", encrypted %q", string(payload), string(encryptedReply))
+				socket.SendBytes(encryptedReply,0, routingId)
+			default:
+				log.Printf("Unknown message type %d", inbound.MessageType)
 			}
-			payload, err := cipherStates.Decrypter.Decrypt(nil, nil, inbound.Payload)
-			if err != nil {
-				log.Fatal(err)
-			}
-			log.Printf("Received %q, decrypted \"%s\"", string(b), string(payload))
-			for i, j := 0, len(payload)-1; i < j; i, j = i+1, j-1 {
-				payload[i], payload[j] = payload[j], payload[i]
-			}
-			encryptedReply := cipherStates.Encrypter.Encrypt(nil, nil, payload)
-			log.Printf("Replying \"%s\", encrypted %q", string(payload), string(encryptedReply))
-			socket.SendBytes(encryptedReply,0, routingId)
 		}
 	}
 }

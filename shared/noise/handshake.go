@@ -2,7 +2,6 @@ package noise
 
 import (
 	"encoding/binary"
-	"fmt"
 	"github.com/flynn/noise"
 )
 
@@ -13,29 +12,20 @@ var (
 	sessionIDEncoding = binary.BigEndian
 )
 
-// EncryptionSessionID is assigned by the server to each client and returned to the client at the handshake completion.
+// ChannelID uniquely identifies the channel between a client and a server
 // The client must pass it back to the server with every subsequent message that uses the cipher states from the handshake.
-type EncryptionSessionID uint16
+type ChannelID []byte
 
 const (
-	HandshakeSessionID = EncryptionSessionID(0)
-	encryptionSessionIDSize = 2
-
+	hashByteLen = 8
 )
 
-// bytes encodes the EncryptionSessionID into a byte array
-func (id EncryptionSessionID) bytes() []byte {
-	b := make([]byte, encryptionSessionIDSize)
-	sessionIDEncoding.PutUint16(b, uint16(id))
-	return b
-}
-
-// convertByteSequence converts a byte array into an EncryptionSessionID
-func convertByteSequence(b []byte) (id EncryptionSessionID, ok bool) {
-	if len(b) < encryptionSessionIDSize {
+// UInt64 converts a ChannelID into an uint64
+func (id ChannelID) UInt64() (uint64, bool) {
+	if len(id) < hashByteLen {
 		return 0, false
 	}
-	return EncryptionSessionID(sessionIDEncoding.Uint16(b)), true
+	return sessionIDEncoding.Uint64(id), true
 }
 
 type CipherStatePair struct {
@@ -47,7 +37,7 @@ type ClientMessenger interface {
 	Exchange(message []byte) (reply []byte, err error)
 }
 
-func ClientHandshake(client ClientMessenger) (id EncryptionSessionID, csPair CipherStatePair, err error) {
+func ClientHandshake(client ClientMessenger) (id ChannelID, csPair CipherStatePair, err error) {
 
 	cs := noise.NewCipherSuite(diffieHellman, cipher, hash)
 
@@ -58,29 +48,24 @@ func ClientHandshake(client ClientMessenger) (id EncryptionSessionID, csPair Cip
 	})
 	msg, _, _, err := handshakeState.WriteMessage(nil, nil)
 	if err != nil {
-		return
+		return id, csPair, err
 	}
 	encryptedReply, err := client.Exchange(msg)
 	if err != nil {
-		return
+		return id, csPair, err
 	}
-	var serverResponse []byte
-	serverResponse, csPair.Encrypter, csPair.Decrypter, err = handshakeState.ReadMessage(nil, encryptedReply)
+	_, csPair.Encrypter, csPair.Decrypter, err = handshakeState.ReadMessage(nil, encryptedReply)
 	if err != nil {
-		return
+		return id, csPair, err
 	}
-	var ok bool
-	if id, ok = convertByteSequence(serverResponse); !ok {
-		err = fmt.Errorf("unable to deduce encryption session id")
-	}
-	return
+	return handshakeState.ChannelBinding(), csPair, nil
 }
 
 type ServerMessenger interface {
 	Send(message []byte) (err error)
 }
 
-func ServerHandshake(server ServerMessenger, id EncryptionSessionID, initiator []byte) (csPair CipherStatePair, err error) {
+func ServerHandshake(server ServerMessenger, initiator []byte) (id ChannelID, csPair CipherStatePair, err error) {
 
 	cs := noise.NewCipherSuite(diffieHellman, cipher, hash)
 
@@ -91,17 +76,17 @@ func ServerHandshake(server ServerMessenger, id EncryptionSessionID, initiator [
 	})
 	_, _, _, err = handshakeState.ReadMessage(nil, initiator)
 	if err != nil {
-		return csPair, err
+		return id, csPair, err
 	}
 
 	var encodedReply []byte
-	encodedReply, csPair.Decrypter, csPair.Encrypter, err = handshakeState.WriteMessage(nil, id.bytes())
+	encodedReply, csPair.Decrypter, csPair.Encrypter, err = handshakeState.WriteMessage(nil, nil)
 	if err != nil {
-		return csPair, err
+		return id, csPair, err
 	}
 	err = server.Send(encodedReply)
 	if err != nil {
-		return csPair, err
+		return id, csPair, err
 	}
-	return csPair, nil
+	return handshakeState.ChannelBinding(), csPair, nil
 }

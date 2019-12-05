@@ -34,7 +34,7 @@ func newCOAPClientMessenger(conn *coap.ClientConn) *coapClientMessenger {
 }
 
 type reverseRequest struct {
-	SessionID noise.EncryptionSessionID
+	ChannelID noise.ChannelID
 	Payload   []byte
 }
 
@@ -45,7 +45,7 @@ func main() {
 	}
 	log.Println("Initialising handshake...")
 	messenger := newCOAPClientMessenger(clientConn)
-	sessionID, csPair, err := noise.ClientHandshake(messenger)
+	channelID, csPair, err := noise.ClientHandshake(messenger)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -64,7 +64,7 @@ func main() {
 		encryptedText := csPair.Encrypter.Encrypt(nil, nil, scanner.Bytes())
 		log.Printf("Sending: \"%s\", encrypted %q", scanner.Text(), encryptedText)
 
-		request, err := json.Marshal(reverseRequest{SessionID: sessionID, Payload: encryptedText})
+		request, err := json.Marshal(reverseRequest{ChannelID: channelID, Payload: encryptedText})
 		if err != nil {
 			log.Printf("Error marshalling request: %v", err)
 			continue
