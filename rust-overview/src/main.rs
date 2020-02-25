@@ -1,10 +1,10 @@
-mod json;
-mod cbor;
-mod http;
+//mod json;
+//mod cbor;
+mod comms;
 
 fn main() {
-    json::run();
-    http::run();
-    cbor::run();
-
+//    json::run();
+//    cbor::run();
+    comms::run_http();
+    comms::run_coap();
 }
